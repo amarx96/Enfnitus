@@ -1,4 +1,5 @@
 const fs = require('fs');
+require('dotenv').config();
 const path = require('path');
 const database = require('./src/config/database');
 const logger = require('./src/utils/logger');
@@ -27,9 +28,11 @@ async function migrateAll() {
     
     // Run migrations in order
     await runMigration('CONTRACTING_SERVICE_SCHEMA.sql');
+    await runMigration('ENHANCE_CUSTOMER_SCHEMA.sql');
     await runMigration('MARKETING_CAMPAIGNS.sql');
     await runMigration('PRICING_MARGINS.sql');
     await runMigration('PRICING_HISTORY.sql');
+    await runMigration('VOUCHER_SCHEMA.sql');
     
     logger.info('All migrations completed successfully!');
     process.exit(0);

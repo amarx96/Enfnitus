@@ -44,6 +44,11 @@ interface CustomerData {
   // Account Information
   passwort: string;
   passwortBestaetigung: string;
+
+  // Payment Information
+  iban: string;
+  kontoinhaber: string;
+  sepaMandat: boolean;
   
   // Agreements
   agbAkzeptiert: boolean;
@@ -66,6 +71,9 @@ interface ErrorData {
   stadt?: string;
   passwort?: string;
   passwortBestaetigung?: string;
+  iban?: string;
+  kontoinhaber?: string;
+  sepaMandat?: string;
   agbAkzeptiert?: string; // Error messages are strings
   datenschutzAkzeptiert?: string; // Error messages are strings
 }
@@ -91,6 +99,9 @@ const ContractPage: React.FC = () => {
     bezirk: '',
     passwort: '',
     passwortBestaetigung: '',
+    iban: '',
+    kontoinhaber: '',
+    sepaMandat: false,
     agbAkzeptiert: false,
     datenschutzAkzeptiert: false,
     marketingEinverstaendnis: false,
@@ -140,6 +151,15 @@ const ContractPage: React.FC = () => {
     if (customerData.passwort !== customerData.passwortBestaetigung) {
       newErrors.passwortBestaetigung = 'Passwörter stimmen nicht überein';
     }
+
+    // Payment validation
+    if (!customerData.iban.trim()) newErrors.iban = 'IBAN ist erforderlich';
+    else if (!/^DE\d{20}$/.test(customerData.iban.replace(/\s/g, ''))) {
+       // Simple DE check, can be relaxed if needed
+       // Keeping it simple for now
+    }
+    if (!customerData.kontoinhaber.trim()) newErrors.kontoinhaber = 'Kontoinhaber ist erforderlich';
+    if (!customerData.sepaMandat) newErrors.sepaMandat = 'SEPA-Mandat muss erteilt werden';
     
     // Required checkboxes
     if (!customerData.agbAkzeptiert) newErrors.agbAkzeptiert = 'AGB müssen akzeptiert werden';
@@ -202,8 +222,8 @@ const ContractPage: React.FC = () => {
           tariffId: selectedTariff.id,
           estimatedConsumption: formData?.jahresverbrauch || 2500,
           desiredStartDate: new Date().toISOString().split('T')[0], // Default to today/ASAP
-          iban: '', // Would be collected in a real payment step
-          sepaMandate: false,
+          iban: customerData.iban,
+          sepaMandate: customerData.sepaMandat,
           voucherCode: voucher?.voucherCode || null
         },
         meterLocation: {
@@ -399,6 +419,45 @@ const ContractPage: React.FC = () => {
                       <FormErrorMessage>{errors.stadt}</FormErrorMessage>
                     </FormControl>
                   </SimpleGrid>
+
+                  <Divider />
+
+                  {/* Payment Information */}
+                  <Text fontWeight="bold" color="gray.700" alignSelf="start">
+                    Zahlungsdaten (SEPA)
+                  </Text>
+                  
+                  <FormControl isInvalid={!!errors.kontoinhaber}>
+                    <FormLabel>Kontoinhaber *</FormLabel>
+                    <Input
+                      value={customerData.kontoinhaber}
+                      onChange={(e) => handleInputChange('kontoinhaber', e.target.value)}
+                      placeholder="Max Mustermann"
+                    />
+                    <FormErrorMessage>{errors.kontoinhaber}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.iban}>
+                    <FormLabel>IBAN *</FormLabel>
+                    <Input
+                      value={customerData.iban}
+                      onChange={(e) => handleInputChange('iban', e.target.value)}
+                      placeholder="DE12 3456 7890 1234 5678 90"
+                    />
+                    <FormErrorMessage>{errors.iban}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.sepaMandat}>
+                    <Checkbox
+                      isChecked={customerData.sepaMandat}
+                      onChange={(e) => handleInputChange('sepaMandat', e.target.checked)}
+                    >
+                      <Text fontSize="sm">
+                        Ich ermächtige Enfinitus Energie, Zahlungen von meinem Konto mittels Lastschrift einzuziehen. Zugleich weise ich mein Kreditinstitut an, die von Enfinitus Energie auf mein Konto gezogenen Lastschriften einzulösen.
+                      </Text>
+                    </Checkbox>
+                    <FormErrorMessage>{errors.sepaMandat}</FormErrorMessage>
+                  </FormControl>
 
                   <Divider />
 

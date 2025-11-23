@@ -180,7 +180,7 @@ const PricingPage: React.FC = () => {
         
         // Transform tariffs to match frontend format
         const transformedTariffs = allTariffs.map((tariff, index) => {
-          const features = ['24/7 Online-Service', 'Keine Mindestlaufzeit', 'Preisgarantie 12 Monate'];
+          const features = ['Dịch vụ trực tuyến 24/7', 'Không có thời hạn tối thiểu', 'Đảm bảo giá 12 tháng'];
           
           if (formData.hatSmartMeter || formData.moechteSmartMeter) {
             features.push('Tối ưu hóa cho công tơ thông minh');

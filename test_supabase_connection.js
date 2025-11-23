@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// Use the provided credentials
 const supabaseUrl = 'https://lorqrxsqgvpjjxfbqugy.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvcnFyeHNxZ3Zwamp4ZmJxdWd5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjA0Mzk0MywiZXhwIjoyMDc3NjE5OTQzfQ.fSDPofIGHbd3CpmtEmiQBGTOryyLktW2u0Xp_pIsw0c';
 

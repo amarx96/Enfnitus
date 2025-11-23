@@ -14,7 +14,7 @@ async function testEnhancedCustomerRegistration() {
       // Personal Information
       vorname: 'Maria',
       nachname: 'Mustermann',
-      email: 'maria.mustermann@example.com',
+      email: `maria.mustermann.${Date.now()}@example.com`,
       telefon: '+49 30 12345678',
       geburtsdatum: '1985-06-15',
       

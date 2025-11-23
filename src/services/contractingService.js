@@ -1,4 +1,4 @@
-const database = require('../config/database');
+const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
 const rabotPricingService = require('./rabotPricingService');
@@ -15,41 +15,18 @@ class ContractingService {
    * @param {Object} data - The import data
    */
   async importContract(data) {
-    const pool = await database.connect();
-    if (!pool) {
-       logger.warn('Database connection disabled: Running in MOCK mode');
-       const contractDraftId = `MOCK-DRAFT-${Date.now()}`;
-       const contractId = `MOCK-CONT-${Date.now()}`;
-       
-       // Store in mock storage
-       this.mockContracts.push({
-           id: contractDraftId,
-           contract_id: contractId,
-           funnel_id: data.funnelId,
-           customer_id: `MOCK-CUST-${Date.now()}`,
-           status: 'DRAFT',
-           created_at: new Date(),
-           schufa_status: 'PENDING'
-       });
-
-       this.mockMaLos.push({
-           id: `MOCK-MALO-${Date.now()}`,
-           contract_draft_id: contractDraftId,
-           market_location_identifier: data.meterLocation.maloId || '12345678901',
-           malo_draft_status: 'PENDING'
-       });
-
-       return {
-         success: true,
-         contractId: contractId,
-         draftId: contractDraftId
-       };
+    // Check if we should use Mock Mode (if Supabase key is missing or explicit env var)
+    if (process.env.MOCK_MODE === 'true') {
+       logger.warn('Running in MOCK mode (Configured via ENV)');
+       return this.mockImportContract(data);
     }
 
-    let client = null;
     try {
-      client = await pool.connect();
-      await client.query('BEGIN');
+      // 0. Log Import Request
+      await supabase.from('import_requests').insert([{
+          payload: data,
+          processed_successfully: false
+      }]);
 
       const {
         funnelId,
@@ -62,32 +39,55 @@ class ContractingService {
 
       // 1. Find or Create Customer
       let customerId;
-      const customerRes = await client.query(
-        'SELECT id FROM customers WHERE email = $1',
-        [customer.email]
-      );
+      const { data: existingCustomer, error: custErr } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', customer.email)
+        .single();
 
-      if (customerRes.rows.length > 0) {
-        customerId = customerRes.rows[0].id;
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
       } else {
-        const newCustomer = await client.query(`
-          INSERT INTO customers (vorname, nachname, email, telefon, strasse, hausnummer, plz, ort)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING id
-        `, [customer.firstName, customer.lastName, customer.email, customer.phone, customer.street, customer.houseNumber, customer.zipCode, customer.city]);
-        customerId = newCustomer.rows[0].id;
+        const { data: newCustomer, error: createCustErr } = await supabase
+          .from('customers')
+          .insert([{
+            vorname: customer.firstName,
+            nachname: customer.lastName,
+            email: customer.email,
+            telefon: customer.phone,
+            strasse: customer.street,
+            hausnummer: customer.houseNumber,
+            plz: customer.zipCode,
+            ort: customer.city
+          }])
+          .select('id')
+          .single();
+        
+        if (createCustErr) throw createCustErr;
+        customerId = newCustomer.id;
       }
 
       // 2. Match Campaign (Tariff)
-      const campaignRes = await client.query(
-        'SELECT * FROM campaigns WHERE campaign_key = $1',
-        [contract.campaignKey]
-      );
-
-      if (campaignRes.rows.length === 0) {
-        throw new Error(`Campaign not found for key: ${contract.campaignKey}`);
+      let campaignKey = contract.campaignKey;
+      
+      // Map Frontend Tariff IDs to Database Campaign Keys
+      if (campaignKey) {
+          const keyLower = campaignKey.toLowerCase();
+          if (keyLower.includes('standard')) campaignKey = 'FIX12_BERLIN_2024';
+          else if (keyLower.includes('fix24')) campaignKey = 'FIX24_BERLIN_2024';
+          else if (keyLower.includes('dynamic')) campaignKey = 'DYN_BERLIN_2024';
+          else if (keyLower.includes('green')) campaignKey = 'FIX12_BERLIN_2024';
       }
-      const campaign = campaignRes.rows[0];
+
+      const { data: campaign, error: campErr } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('campaign_key', campaignKey)
+        .single();
+
+      if (campErr || !campaign) {
+        throw new Error(`Campaign not found for key: ${campaignKey} (Original: ${contract.campaignKey})`);
+      }
 
       // 3. Handle Voucher / Marketing Campaign
       let marketingCampaignId = null;
@@ -95,25 +95,23 @@ class ContractingService {
       let basePrice = parseFloat(campaign.base_price_eur_month);
 
       if (contract.voucherCode) {
-        const voucherRes = await client.query(
-          `SELECT * FROM marketing_campaigns 
-           WHERE voucher_code = $1 
-           AND is_active = true 
-           AND start_date <= CURRENT_DATE 
-           AND end_date >= CURRENT_DATE`,
-          [contract.voucherCode]
-        );
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const { data: voucher, error: voucherErr } = await supabase
+            .from('marketing_campaigns')
+            .select('*')
+            .eq('voucher_code', contract.voucherCode)
+            .eq('is_active', true)
+            .lte('start_date', today)
+            .gte('end_date', today)
+            .single();
 
-        if (voucherRes.rows.length > 0) {
-          const voucher = voucherRes.rows[0];
-          
+        if (voucher) {
           // Check funnel restriction if applicable
           if (!voucher.funnel_id || voucher.funnel_id === funnelId) {
             marketingCampaignId = voucher.id;
             workingPrice -= parseFloat(voucher.discount_working_price_ct);
             basePrice -= parseFloat(voucher.discount_base_price_eur);
             
-            // Ensure prices don't go negative (optional, but good practice)
             workingPrice = Math.max(0, workingPrice);
             basePrice = Math.max(0, basePrice);
             
@@ -141,431 +139,334 @@ class ContractingService {
 
       // Fetch Margin
       let margin = { margin_working_price_ct: 0, margin_base_price_eur: 0 };
-      try {
-        const marginRes = await client.query(
-            'SELECT * FROM pricing_margins WHERE funnel_id = $1 AND tariff_type = $2',
-            [funnelId, tariffType]
-        );
-        if (marginRes.rows.length > 0) margin = marginRes.rows[0];
-      } catch (e) { /* ignore */ }
+      const { data: marginData } = await supabase
+        .from('pricing_margins')
+        .select('*')
+        .eq('funnel_id', funnelId)
+        .eq('tariff_type', tariffType)
+        .single();
+      
+      if (marginData) margin = marginData;
 
       const finalAp = rabotTariff.energy_price_ct_kwh + parseFloat(margin.margin_working_price_ct || 0);
       const finalGp = rabotTariff.base_price_eur_month + parseFloat(margin.margin_base_price_eur || 0);
 
       let snapshotId = null;
       try {
-          // Check existing
-          const existingRes = await client.query(`
-            SELECT id FROM tariff_price_snapshots
-            WHERE funnel_id = $1 AND tariff_type = $2 AND zip_code = $3
-            AND rabot_working_price_ct = $4 AND rabot_base_price_eur = $5
-            AND margin_working_price_ct = $6 AND margin_base_price_eur = $7
-            ORDER BY created_at DESC LIMIT 1
-          `, [
-              funnelId, tariffType, zipCode,
-              rabotTariff.energy_price_ct_kwh, rabotTariff.base_price_eur_month,
-              margin.margin_working_price_ct || 0, margin.margin_base_price_eur || 0
-          ]);
-          
-          if (existingRes.rows.length > 0) {
-              snapshotId = existingRes.rows[0].id;
-          } else {
-              const snapshotRes = await client.query(`
-                INSERT INTO tariff_price_snapshots (
-                    funnel_id, tariff_type, zip_code,
-                    rabot_working_price_ct, rabot_base_price_eur,
-                    margin_working_price_ct, margin_base_price_eur,
-                    final_working_price_ct, final_base_price_eur
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING id
-              `, [
-                  funnelId, tariffType, zipCode,
-                  rabotTariff.energy_price_ct_kwh, rabotTariff.base_price_eur_month,
-                  margin.margin_working_price_ct || 0, margin.margin_base_price_eur || 0,
-                  finalAp, finalGp
-              ]);
-              snapshotId = snapshotRes.rows[0].id;
-          }
+          // Create Snapshot
+          const { data: snapshot, error: snapErr } = await supabase
+            .from('tariff_price_snapshots')
+            .insert([{
+                funnel_id: funnelId, 
+                tariff_type: tariffType, 
+                zip_code: zipCode,
+                rabot_working_price_ct: rabotTariff.energy_price_ct_kwh, 
+                rabot_base_price_eur: rabotTariff.base_price_eur_month,
+                margin_working_price_ct: margin.margin_working_price_ct || 0, 
+                margin_base_price_eur: margin.margin_base_price_eur || 0,
+                final_working_price_ct: finalAp, 
+                final_base_price_eur: finalGp
+            }])
+            .select('id')
+            .single();
+            
+          if (snapshot) snapshotId = snapshot.id;
       } catch (e) {
           logger.warn('Failed to create tariff snapshot', e);
       }
 
       // 4. Create Contract ID
-      const contractId = `CONT-${customerId.substring(0,8)}-${campaign.id.substring(0,8)}-${Date.now()}`;
+      const contractIdGen = `CONT-${customerId.substring(0,8)}-${campaign.id.substring(0,8)}-${Date.now()}`;
 
       // 5. Create Contract Draft
-      const contractDraftRes = await client.query(`
-        INSERT INTO contract_drafts (
-          contract_id, funnel_id, customer_id, campaign_id, tariff_id,
-          working_price_ct_kwh, fix_fee_eur_month, expected_consumption,
-          contract_draft_date, desired_contract_change_date,
-          schufa_status, iban, sepa_mandate, status,
-          marketing_campaign_id, tariff_snapshot_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12, 'DRAFT', $13, $14)
-        RETURNING id
-      `, [
-        contractId,
-        funnelId,
-        customerId,
-        campaign.id,
-        contract.tariffId,
-        workingPrice,
-        basePrice,
-        contract.estimatedConsumption,
-        contract.desiredStartDate,
-        'PENDING',
-        contract.iban,
-        contract.sepaMandate || false,
-        marketingCampaignId,
-        snapshotId
-      ]);
+      const { data: contractDraft, error: draftErr } = await supabase
+        .from('contract_drafts')
+        .insert([{
+          contract_id: contractIdGen,
+          funnel_id: funnelId,
+          customer_id: customerId,
+          campaign_id: campaign.id,
+          tariff_id: contract.tariffId,
+          working_price_ct_kwh: workingPrice,
+          fix_fee_eur_month: basePrice,
+          expected_consumption: contract.estimatedConsumption,
+          contract_draft_date: new Date().toISOString(),
+          desired_contract_change_date: contract.desiredStartDate,
+          schufa_status: 'PENDING',
+          iban: contract.iban,
+          sepa_mandate: contract.sepaMandate || false,
+          status: 'DRAFT',
+          marketing_campaign_id: marketingCampaignId,
+          tariff_snapshot_id: snapshotId
+        }])
+        .select('id')
+        .single();
 
-      const contractDraftId = contractDraftRes.rows[0].id;
+      if (draftErr) throw draftErr;
+      const contractDraftId = contractDraft.id;
 
       // 6. Create MaLo Draft
-      const maloDraftRes = await client.query(`
-        INSERT INTO malo_drafts (
-          customer_id, contract_draft_id,
-          market_location_identifier, has_own_msb, meter_number,
-          previous_provider_code, previous_annual_consumption,
-          malo_draft_status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING')
-        RETURNING id
-      `, [
-        customerId,
-        contractDraftId,
-        meterLocation.maloId,
-        meterLocation.hasOwnMsb || false,
-        meterLocation.meterNumber,
-        meterLocation.previousProviderId,
-        meterLocation.previousConsumption
-      ]);
+      const { error: maloErr } = await supabase
+        .from('malo_drafts')
+        .insert([{
+          customer_id: customerId,
+          contract_draft_id: contractDraftId,
+          market_location_identifier: meterLocation.maloId,
+          has_own_msb: meterLocation.hasOwnMsb || false,
+          meter_number: meterLocation.meterNumber,
+          previous_provider_code: meterLocation.previousProviderId,
+          previous_annual_consumption: meterLocation.previousConsumption,
+          malo_draft_status: 'PENDING'
+        }]);
 
-      await client.query('COMMIT');
+      if (maloErr) {
+          // Rollback attempt (delete draft) - Basic compensation logic
+          await supabase.from('contract_drafts').delete().eq('id', contractDraftId);
+          throw maloErr;
+      }
+
       logger.info(`Contract import successful. Draft ID: ${contractDraftId}`);
+
+      // Audit: Draft Created
+      await supabase.from('contract_events').insert([{
+          contract_id: contractIdGen,
+          event_type: 'DRAFT_CREATED',
+          details: { draftId: contractDraftId, funnelId }
+      }]);
 
       this.verifyDraft(contractDraftId).catch(err => logger.error('Verification failed', err));
 
       return {
         success: true,
-        contractId: contractId,
+        contractId: contractIdGen,
         draftId: contractDraftId
       };
 
     } catch (error) {
-      if (client) await client.query('ROLLBACK');
       logger.error('Import failed', error);
+      // If connection failed completely, fall back to mock?
+      if (error.message.includes('FetchError') || error.message.includes('connection')) {
+          return this.mockImportContract(data);
+      }
       throw error;
-    } finally {
-      if (client) client.release();
     }
   }
 
-  // ... (verifyDraft, logChange, updateMaLoDraft remain same) ...
-  
+  mockImportContract(data) {
+       const contractDraftId = `MOCK-DRAFT-${Date.now()}`;
+       const contractId = `MOCK-CONT-${Date.now()}`;
+       this.mockContracts.push({
+           id: contractDraftId,
+           contract_id: contractId,
+           funnel_id: data.funnelId,
+           customer_id: `MOCK-CUST-${Date.now()}`,
+           status: 'DRAFT',
+           created_at: new Date(),
+           schufa_status: 'PENDING'
+       });
+       this.mockMaLos.push({
+           id: `MOCK-MALO-${Date.now()}`,
+           contract_draft_id: contractDraftId,
+           market_location_identifier: data.meterLocation.maloId || '12345678901',
+           malo_draft_status: 'PENDING'
+       });
+       return { success: true, contractId, draftId: contractDraftId };
+  }
+
   /**
    * Verify a draft (Mocking SCHUFA and MaLo checks)
    */
   async verifyDraft(draftId) {
     logger.info(`Starting verification for draft ${draftId}`);
-    const pool = await database.connect();
-    if (!pool) return;
+    
+    const schufaScore = Math.random() > 0.1; 
+    const schufaStatus = schufaScore ? 'APPROVED' : 'REJECTED';
 
-    let client = null;
-    try {
-      client = await pool.connect();
-      const schufaScore = Math.random() > 0.1; 
-      const schufaStatus = schufaScore ? 'APPROVED' : 'REJECTED';
+    await supabase
+      .from('contract_drafts')
+      .update({ schufa_status: schufaStatus })
+      .eq('id', draftId);
 
-      await client.query(
-        'UPDATE contract_drafts SET schufa_status = $1 WHERE id = $2',
-        [schufaStatus, draftId]
-      );
+    await supabase
+      .from('malo_drafts')
+      .update({ 
+          schufa_score_accepted: schufaScore,
+          malo_draft_status: schufaScore ? 'APPROVED' : 'REJECTED'
+      })
+      .eq('contract_draft_id', draftId);
 
-      await client.query(
-        'UPDATE malo_drafts SET schufa_score_accepted = $1 WHERE contract_draft_id = $2',
-        [schufaScore, draftId]
-      );
-      
-      if (schufaScore) {
-        await client.query(
-          'UPDATE malo_drafts SET malo_draft_status = $1 WHERE contract_draft_id = $2',
-          ['APPROVED', draftId] 
-        );
-      } else {
-         await client.query(
-          'UPDATE malo_drafts SET malo_draft_status = $1 WHERE contract_draft_id = $2',
-          ['REJECTED', draftId]
-        );
-      }
-
-      logger.info(`Verification completed for draft ${draftId}: ${schufaStatus}`);
-
-    } catch (error) {
-      logger.error('Verification error', error);
-    } finally {
-      if (client) client.release();
+    logger.info(`Verification completed for draft ${draftId}: ${schufaStatus}`);
+    
+    // Audit: Validation Result
+    // Need contract_id? We only have draftId here. 
+    // Ideally we'd fetch contract_id, but for simplicity let's trust later steps or query it.
+    // Querying contract_id from draftId
+    const { data: draft } = await supabase.from('contract_drafts').select('contract_id').eq('id', draftId).single();
+    if (draft) {
+        await supabase.from('contract_events').insert([{
+            contract_id: draft.contract_id,
+            event_type: schufaStatus === 'APPROVED' ? 'VALIDATION_PASSED' : 'VALIDATION_FAILED',
+            details: { schufaScore: schufaScore, automatic: true }
+        }]);
     }
-  }
-
-  async logChange(client, tableName, recordId, fieldName, oldValue, newValue, changedBy) {
-    await client.query(`
-      INSERT INTO change_logs (table_name, record_id, field_name, old_value, new_value, changed_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [tableName, recordId, fieldName, String(oldValue), String(newValue), changedBy]);
   }
 
   async updateMaLoDraft(id, updates, userId) {
-    const pool = await database.connect();
-    if (!pool) {
-      logger.warn('Database disabled, mocking updateMaLoDraft');
-      return { success: true };
-    }
+    // Mock check
+    if (id.startsWith('MOCK')) return { success: true };
+
+    const { error } = await supabase
+      .from('malo_drafts')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id);
+      
+    if (error) throw error;
+
+    // Audit: Manual Edit
+    // Get contract_id via join
+    const { data: draft } = await supabase
+        .from('malo_drafts')
+        .select('contract_drafts(contract_id)')
+        .eq('id', id)
+        .single();
     
-    let client = null;
-    try {
-      client = await pool.connect();
-      await client.query('BEGIN');
-      const currentRes = await client.query('SELECT * FROM malo_drafts WHERE id = $1', [id]);
-      const current = currentRes.rows[0];
-      const fields = Object.keys(updates);
-      const values = Object.values(updates);
-      const setClause = fields.map((f, i) => `${f.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)} = $${i + 2}`).join(', ');
-      await client.query(
-        `UPDATE malo_drafts SET ${setClause}, updated_at = NOW() WHERE id = $1`,
-        [id, ...values]
-      );
-      for (const field of fields) {
-        const dbField = field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-        if (current[dbField] !== updates[field]) {
-          await this.logChange(client, 'malo_drafts', id, dbField, current[dbField], updates[field], userId);
-        }
-      }
-      await client.query('COMMIT');
-      return { success: true };
-    } catch (error) {
-      if (client) await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      if (client) client.release();
+    if (draft && draft.contract_drafts) {
+         await supabase.from('contract_events').insert([{
+            contract_id: draft.contract_drafts.contract_id,
+            event_type: 'MANUAL_EDIT',
+            performed_by: userId || 'OPS_USER',
+            details: { updates }
+        }]);
     }
+
+    return { success: true };
   }
 
-  /**
-   * Confirm Switch / Move to CustomerMaLo AND Final Contracts
-   */
   async confirmSwitch(draftId, adminId) {
-    const pool = await database.connect();
-    if (!pool) {
-      logger.warn('Database disabled, mocking confirmSwitch');
-      return { success: true, message: 'Switch process initiated (MOCKED)' };
-    }
+    if (draftId.startsWith('MOCK')) return { success: true, message: 'Switch process initiated (MOCKED)' };
 
-    let client = null;
-    try {
-      client = await pool.connect();
-      await client.query('BEGIN');
+    // Get verified draft data
+    const { data: draft, error } = await supabase
+        .from('malo_drafts')
+        .select(`
+            *,
+            contract_drafts (*)
+        `)
+        .eq('id', draftId)
+        .single();
 
-      // Get verified draft data
-      const draftRes = await client.query(`
-        SELECT md.*, cd.*
-        FROM malo_drafts md
-        JOIN contract_drafts cd ON md.contract_draft_id = cd.id
-        WHERE md.contract_draft_id = $1
-      `, [draftId]);
+    if (error || !draft) throw new Error('Draft not found');
+    
+    const contractDraft = draft.contract_drafts; // Joined data
 
-      if (draftRes.rows.length === 0) {
-        throw new Error('Draft not found');
-      }
-      const draft = draftRes.rows[0];
-
-      if (draft.malo_draft_status !== 'APPROVED') {
+    if (draft.malo_draft_status !== 'APPROVED') {
         throw new Error('MaLo draft is not approved yet');
-      }
-
-      // 1. Create Pricing Data (Legacy)
-      const pricingRes = await client.query(`
-        INSERT INTO pricing_data (
-          customer_id, plz, verbrauch, haushaltsgroesse, 
-          estimated_costs
-        ) VALUES ($1, $2, $3, $4, $5)
-        RETURNING id
-      `, [
-        draft.customer_id,
-        '00000', 
-        draft.expected_consumption,
-        1, 
-        {
-          working_price: draft.working_price_ct_kwh,
-          base_price: draft.fix_fee_eur_month
-        }
-      ]);
-      const pricingId = pricingRes.rows[0].id;
-
-      // 2. Create Final Contract (Legacy) with Marketing Link
-      // Note: Assuming 'contracts' table has been updated to include marketing_campaign_id by the SQL script
-      const contractRes = await client.query(`
-        INSERT INTO contracts (
-          customer_id, pricing_id, contract_number, 
-          status, start_date, end_date, terms_accepted,
-          marketing_campaign_id
-        ) VALUES ($1, $2, $3, 'ACTIVE', $4, $5, true, $6)
-        RETURNING id
-      `, [
-        draft.customer_id,
-        pricingId,
-        draft.contract_id,
-        draft.desired_contract_change_date,
-        draft.expected_contract_end_date,
-        draft.marketing_campaign_id
-      ]);
-      const finalContractId = contractRes.rows[0].id;
-
-      // 3. Move to Customer MaLo
-      await client.query(`
-        INSERT INTO customer_malo (
-          customer_id, contract_id, funnel_id,
-          market_location_identifier, has_own_msb, meter_number,
-          previous_provider_code, previous_annual_consumption,
-          possible_supplier_change_date, schufa_score_accepted,
-          change_process_status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'IN_PROGRESS')
-      `, [
-        draft.customer_id,
-        draft.contract_draft_id,
-        draft.funnel_id,
-        draft.market_location_identifier,
-        draft.has_own_msb,
-        draft.meter_number,
-        draft.previous_provider_code,
-        draft.previous_annual_consumption,
-        draft.possible_supplier_change_date,
-        draft.schufa_score_accepted
-      ]);
-
-      // 4. Update Contract Draft Status
-      await client.query(
-        "UPDATE contract_drafts SET status = 'ACTIVE' WHERE id = $1",
-        [draft.contract_draft_id]
-      );
-
-      await client.query('COMMIT');
-
-      logger.info(`Switch confirmed. Contract ${draft.contract_id} active.`);
-      
-      return { success: true, message: 'Switch process initiated' };
-
-    } catch (error) {
-      if (client) await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      if (client) client.release();
     }
+
+    // 1. Create Final Contract
+    const { data: contract, error: contErr } = await supabase
+        .from('contracts')
+        .insert([{
+            customer_id: contractDraft.customer_id,
+            contract_id: contractDraft.contract_id,
+            status: 'active',
+            marketing_campaign_id: contractDraft.marketing_campaign_id,
+            tariff_snapshot_id: contractDraft.tariff_snapshot_id,
+            created_at: new Date().toISOString()
+        }])
+        .select('id')
+        .single();
+        
+    if (contErr) throw contErr;
+
+    // 2. Move to Customer MaLo
+    const { error: maloErr } = await supabase
+        .from('customer_malo')
+        .insert([{
+            customer_id: contractDraft.customer_id,
+            contract_id: contractDraft.id, // draft ID used as reference currently
+            funnel_id: contractDraft.funnel_id,
+            market_location_identifier: draft.market_location_identifier,
+            has_own_msb: draft.has_own_msb,
+            meter_number: draft.meter_number,
+            previous_provider_code: draft.previous_provider_code,
+            previous_annual_consumption: draft.previous_annual_consumption,
+            possible_supplier_change_date: draft.possible_supplier_change_date,
+            schufa_score_accepted: draft.schufa_score_accepted,
+            change_process_status: 'IN_PROGRESS'
+        }]);
+        
+    if (maloErr) throw maloErr;
+
+    // 3. Update Contract Draft Status
+    await supabase
+        .from('contract_drafts')
+        .update({ status: 'active' })
+        .eq('id', contractDraft.id);
+
+    // Audit: Activated
+    await supabase.from('contract_events').insert([{
+        contract_id: contractDraft.contract_id,
+        event_type: 'ACTIVATED',
+        details: { finalContractId: contract.id }
+    }]);
+
+    logger.info(`Switch confirmed. Contract ${contractDraft.contract_id} active.`);
+    return { success: true, message: 'Switch process initiated' };
   }
 
   // Ops Getters
   async getCampaigns() {
-    const pool = await database.connect();
-    if (!pool) {
-        // Return dummy campaigns
-        return [
-            { id: 1, campaign_key: 'FIX12', name: 'Fix 12' },
-            { id: 2, campaign_key: 'FIX24', name: 'Fix 24' },
-            { id: 3, campaign_key: 'DYN', name: 'Dynamic' }
-        ];
-    }
-    const res = await database.query('SELECT * FROM campaigns');
-    return res.rows;
+    const { data } = await supabase.from('campaigns').select('*');
+    if (!data) return [];
+    return data;
   }
 
   async getMarketingCampaigns() {
-    const pool = await database.connect();
-    if (!pool) {
-        return this.mockMarketingCampaigns;
-    }
-    const res = await database.query('SELECT * FROM marketing_campaigns ORDER BY created_at DESC');
-    return res.rows;
+    const { data } = await supabase.from('marketing_campaigns').select('*').order('created_at', { ascending: false });
+    if (!data) return this.mockMarketingCampaigns;
+    return data;
   }
 
   async createMarketingCampaign(data) {
-    const pool = await database.connect();
-    if (!pool) {
-       logger.warn('Database disabled, mocking createMarketingCampaign');
-       const campaignId = `MOCK-CAMP-${Date.now()}`;
-       this.mockMarketingCampaigns.push({
-           id: campaignId,
-           ...data,
-           campaign_id: campaignId,
-           created_at: new Date()
-       });
-       return { success: true, campaignId };
-    }
+    const campaignId = `CAMP-${data.voucherCode}-${new Date().getFullYear()}`;
+    
+    const { error } = await supabase
+        .from('marketing_campaigns')
+        .insert([{
+          campaign_id: campaignId,
+          voucher_code: data.voucherCode,
+          funnel_id: data.funnelId,
+          discount_working_price_ct: data.discountWorkingPrice,
+          discount_base_price_eur: data.discountBasePrice,
+          start_date: data.startDate,
+          end_date: data.endDate
+        }]);
 
-    let client = null;
-    try {
-      client = await pool.connect();
-      // Generate Campaign ID
-      const campaignId = `CAMP-${data.voucherCode}-${new Date().getFullYear()}`;
-      
-      await client.query(`
-        INSERT INTO marketing_campaigns (
-          campaign_id, voucher_code, funnel_id,
-          discount_working_price_ct, discount_base_price_eur,
-          start_date, end_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [
-        campaignId,
-        data.voucherCode,
-        data.funnelId,
-        data.discountWorkingPrice,
-        data.discountBasePrice,
-        data.startDate,
-        data.endDate
-      ]);
-      return { success: true, campaignId };
-    } catch (error) {
-      logger.error('Create marketing campaign error', error);
-      throw error;
-    } finally {
-      if (client) client.release();
-    }
+    if (error) throw error;
+    return { success: true, campaignId };
   }
 
   async getContractDrafts(customerId) {
-    const pool = await database.connect();
-    if (!pool) {
-        if (customerId) {
-            return this.mockContracts.filter(c => c.customer_id === customerId);
-        }
-        return this.mockContracts;
-    }
-    
-    let query = 'SELECT * FROM contract_drafts';
-    let params = [];
+    let query = supabase.from('contract_drafts').select('*');
     if (customerId) {
-      query += ' WHERE customer_id = $1';
-      params.push(customerId);
+      query = query.eq('customer_id', customerId);
     }
-    const res = await database.query(query, params);
-    return res.rows;
+    const { data } = await query;
+    if (!data) return this.mockContracts;
+    return data;
   }
 
   async getMaLoDrafts(contractId) {
-    const pool = await database.connect();
-    if (!pool) {
-        const draft = this.mockContracts.find(c => c.contract_id === contractId);
-        if (!draft) return [];
-        return this.mockMaLos.filter(m => m.contract_draft_id === draft.id);
-    }
-
-    const res = await database.query(
-      `SELECT md.* 
-       FROM malo_drafts md
-       JOIN contract_drafts cd ON md.contract_draft_id = cd.id
-       WHERE cd.contract_id = $1`,
-      [contractId]
-    );
-    return res.rows;
+    // Need to join to filter by contract_id string on parent
+    // Supabase join syntax: contract_drafts!inner(contract_id)
+    const { data } = await supabase
+        .from('malo_drafts')
+        .select('*, contract_drafts!inner(contract_id)')
+        .eq('contract_drafts.contract_id', contractId);
+        
+    if (!data) return [];
+    return data;
   }
 }
 

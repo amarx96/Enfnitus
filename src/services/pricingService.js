@@ -1,6 +1,6 @@
 const rabotPricingService = require('./rabotPricingService');
 const logger = require('../utils/logger');
-const database = require('../config/database');
+const { supabase } = require('../config/supabase');
 
 class PricingService {
   constructor() {
@@ -14,12 +14,6 @@ class PricingService {
   /**
    * Calculate pricing for a specific postal code and consumption
    * Uses Rabot Energy as the pricing source + Enfinitus Margins
-   * @param {string} plz - 5-digit postal code
-   * @param {number} jahresverbrauch - Annual consumption in kWh
-   * @param {number} haushaltgroesse - Household size
-   * @param {string} tariftyp - Tariff type (standard, green, dynamic)
-   * @param {string} funnelId - Funnel ID (enfinitus-website, viet-energie-website)
-   * @returns {Promise<Object>} Pricing calculation result
    */
   async calculatePricing(plz, jahresverbrauch = null, haushaltgroesse = 2, tariftyp = 'standard', funnelId = 'enfinitus-website') {
     try {
@@ -31,8 +25,7 @@ class PricingService {
         jahresverbrauch = this.estimateConsumption(haushaltgroesse);
       }
 
-      // Map tariff type to Rabot tariff keys if necessary
-      // Rabot mock returns: standard, green, dynamic
+      // Map tariff type to Rabot tariff keys
       const rabotTariffKey = tariftyp === 'oeko' ? 'green' : (tariftyp === 'dynamisch' ? 'dynamic' : 'standard');
       const tariffData = rabotPricing.tariffs[rabotTariffKey] || rabotPricing.tariffs['standard'];
 
@@ -49,18 +42,18 @@ class PricingService {
         if (tariftyp === 'dynamisch') marginType = 'DYNAMIC';
         if (tariftyp === 'standard') marginType = 'FIX12';
         
-        // Check DB connection or use Mock
-        const pool = await database.connect();
-        if (pool) { 
-             const marginRes = await database.query(
-                'SELECT * FROM pricing_margins WHERE funnel_id = $1 AND tariff_type = $2',
-                [funnelId, marginType]
-             );
-             if (marginRes.rows.length > 0) {
-                 margin = marginRes.rows[0];
-             }
-        } else {
-             // Use Mock Storage
+        // Use Supabase Client
+        const { data: marginData, error } = await supabase
+            .from('pricing_margins')
+            .select('*')
+            .eq('funnel_id', funnelId)
+            .eq('tariff_type', marginType)
+            .single();
+
+        if (marginData) {
+             margin = marginData;
+        } else if (error && error.code !== 'PGRST116') { // 116 is "row not found"
+             // Fallback to mock if error (e.g. connection issue)
              const mock = this.mockMargins.find(m => m.funnel_id === funnelId && m.tariff_type === marginType);
              if (mock) margin = mock;
         }
@@ -70,7 +63,6 @@ class PricingService {
       }
 
       // Calculate final prices
-      // Rabot returns energy_price_ct_kwh and base_price_eur_month
       const finalWorkingPrice = tariffData.energy_price_ct_kwh + parseFloat(margin.margin_working_price_ct || 0);
       const finalBasePrice = tariffData.base_price_eur_month + parseFloat(margin.margin_base_price_eur || 0);
 
@@ -96,7 +88,7 @@ class PricingService {
           consumption: {
             annual_kwh: jahresverbrauch,
             household_size: haushaltgroesse,
-            estimated: !jahresverbrauch // true if we estimated it
+            estimated: !jahresverbrauch
           },
           tarife: [
             {
@@ -105,7 +97,7 @@ class PricingService {
               type: tariffData.type,
               description: `Power by Rabot Energy - ${tariffData.type}`,
               preise: {
-                arbeitspreis_netto: (finalWorkingPrice / 1.19).toFixed(4), // approx net, 4 decimals for AP
+                arbeitspreis_netto: (finalWorkingPrice / 1.19).toFixed(4),
                 arbeitspreis_brutto: finalWorkingPrice,
                 grundpreis_netto: (finalBasePrice / 1.19).toFixed(2),
                 grundpreis_brutto: finalBasePrice,
@@ -137,9 +129,6 @@ class PricingService {
     }
   }
 
-  /**
-   * Calculate alternatives from Rabot tariffs applying Margins
-   */
   async calculateAlternativesWithMargins(tariffs, jahresverbrauch, currentKey, funnelId) {
     const alternatives = [];
     const keys = Object.keys(tariffs);
@@ -148,7 +137,6 @@ class PricingService {
       if (key !== currentKey) {
         const t = tariffs[key];
         
-        // Determine Tariff Type for Margin Lookup
         let marginType = 'FIX12';
         if (key === 'green') marginType = 'GREEN';
         if (key === 'dynamic') marginType = 'DYNAMIC';
@@ -156,17 +144,14 @@ class PricingService {
         
         let margin = { margin_working_price_ct: 0, margin_base_price_eur: 0 };
         try {
-           const pool = await database.connect();
-           if (pool) {
-             const res = await database.query(
-                'SELECT * FROM pricing_margins WHERE funnel_id = $1 AND tariff_type = $2',
-                [funnelId, marginType]
-             );
-             if (res.rows.length > 0) margin = res.rows[0];
-           } else {
-               const mock = this.mockMargins.find(m => m.funnel_id === funnelId && m.tariff_type === marginType);
-               if (mock) margin = mock;
-           }
+           const { data: marginData } = await supabase
+                .from('pricing_margins')
+                .select('*')
+                .eq('funnel_id', funnelId)
+                .eq('tariff_type', marginType)
+                .single();
+            
+           if (marginData) margin = marginData;
         } catch (e) { /* ignore */ }
 
         const finalWorkingPrice = t.energy_price_ct_kwh + parseFloat(margin.margin_working_price_ct || 0);
@@ -185,53 +170,45 @@ class PricingService {
     return alternatives;
   }
 
-  /**
-   * Get all pricing margins (Ops)
-   */
   async getMargins() {
-      if (!database.getPool()) {
-          return this.mockMargins;
-      }
-      const res = await database.query('SELECT * FROM pricing_margins ORDER BY funnel_id, tariff_type');
-      return res.rows;
+      const { data, error } = await supabase.from('pricing_margins').select('*').order('funnel_id');
+      if (error || !data) return this.mockMargins;
+      return data;
   }
 
-  /**
-   * Update or Insert a margin (Ops)
-   */
   async updateMargin(data) {
       const { funnelId, tariffType, marginWorkingPrice, marginBasePrice } = data;
-
-      if (!database.getPool()) {
-          logger.info('Mock update margin', data);
-          const existingIndex = this.mockMargins.findIndex(m => m.funnel_id === funnelId && m.tariff_type === tariffType);
-          if (existingIndex >= 0) {
-              this.mockMargins[existingIndex] = {
-                  funnel_id: funnelId,
-                  tariff_type: tariffType,
-                  margin_working_price_ct: parseFloat(marginWorkingPrice),
-                  margin_base_price_eur: parseFloat(marginBasePrice)
-              };
-          } else {
-              this.mockMargins.push({
-                  funnel_id: funnelId,
-                  tariff_type: tariffType,
-                  margin_working_price_ct: parseFloat(marginWorkingPrice),
-                  margin_base_price_eur: parseFloat(marginBasePrice)
-              });
-          }
-          return { success: true }; 
-      }
       
-      await database.query(`
-          INSERT INTO pricing_margins (funnel_id, tariff_type, margin_working_price_ct, margin_base_price_eur, updated_at)
-          VALUES ($1, $2, $3, $4, NOW())
-          ON CONFLICT (funnel_id, tariff_type) 
-          DO UPDATE SET 
-            margin_working_price_ct = EXCLUDED.margin_working_price_ct,
-            margin_base_price_eur = EXCLUDED.margin_base_price_eur,
-            updated_at = NOW()
-      `, [funnelId, tariffType, marginWorkingPrice, marginBasePrice]);
+      const { error } = await supabase
+          .from('pricing_margins')
+          .upsert({
+              funnel_id: funnelId,
+              tariff_type: tariffType,
+              margin_working_price_ct: parseFloat(marginWorkingPrice),
+              margin_base_price_eur: parseFloat(marginBasePrice),
+              updated_at: new Date().toISOString()
+          }, { onConflict: 'funnel_id, tariff_type' });
+
+      if (error) {
+          // Fallback to mock
+           const existingIndex = this.mockMargins.findIndex(m => m.funnel_id === funnelId && m.tariff_type === tariffType);
+           if (existingIndex >= 0) {
+               this.mockMargins[existingIndex] = {
+                   funnel_id: funnelId,
+                   tariff_type: tariffType,
+                   margin_working_price_ct: parseFloat(marginWorkingPrice),
+                   margin_base_price_eur: parseFloat(marginBasePrice)
+               };
+           } else {
+               this.mockMargins.push({
+                   funnel_id: funnelId,
+                   tariff_type: tariffType,
+                   margin_working_price_ct: parseFloat(marginWorkingPrice),
+                   margin_base_price_eur: parseFloat(marginBasePrice)
+               });
+           }
+           return { success: true }; 
+      }
       
       return { success: true };
   }
@@ -242,43 +219,21 @@ class PricingService {
       return 'FIX12';
   }
 
-  /**
-   * Estimate consumption based on household size (with economies of scale)
-   * @param {number} haushaltgroesse - Number of people in household
-   * @returns {number} Estimated annual consumption in kWh
-   */
   estimateConsumption(haushaltgroesse) {
-    const baseConsumption = 1500; // kWh base consumption
-    const personMultiplier = [
-      0,    // 0 persons
-      1.0,  // 1 person: 100% = 2300 kWh
-      0.85, // 2 persons: 85% efficiency = 3275 kWh  
-      0.75, // 3 persons: 75% efficiency = 4200 kWh
-      0.70, // 4 persons: 70% efficiency = 4900 kWh
-    ];
-    
+    const baseConsumption = 1500; 
+    const personMultiplier = [0, 1.0, 0.85, 0.75, 0.70];
     const persons = Math.min(haushaltgroesse, 4);
     const additionalPerPerson = 800;
     const efficiency = personMultiplier[persons] || 0.70;
-    
     return Math.round(baseConsumption + (persons * additionalPerPerson * efficiency));
   }
 
-  /**
-   * Calculate savings compared to average market prices
-   * @param {number} gesamtkostenJahr - Total annual costs
-   * @param {number} jahresverbrauch - Annual consumption
-   * @returns {Object} Savings comparison
-   */
   calculateMarketComparison(gesamtkostenJahr, jahresverbrauch) {
-    // Average German electricity price (2025): ~35 ct/kWh + 12 EUR/month base
     const marktpreisKwhCent = 35;
     const marktpreisGrundEur = 12;
     const marktpreisJahr = (jahresverbrauch * marktpreisKwhCent / 100) + (marktpreisGrundEur * 12);
-    
     const ersparnis = marktpreisJahr - gesamtkostenJahr;
     const ersparnisPercent = (ersparnis / marktpreisJahr) * 100;
-    
     return {
       marktpreis_jahr: Math.round(marktpreisJahr * 100) / 100,
       enfinitus_jahr: Math.round(gesamtkostenJahr * 100) / 100,
@@ -288,22 +243,11 @@ class PricingService {
     };
   }
 
-  /**
-   * Get all supported postal codes
-   * With Rabot, we assume broad support, so this is less relevant but kept for compatibility
-   * @returns {Array} List of supported postal codes (dummy)
-   */
   getSupportedPostalCodes() {
-    return ['10115', '10117', '10119', '10178', '10179']; // Examples
+    return ['10115', '10117', '10119', '10178', '10179'];
   }
 
-  /**
-   * Check if a postal code is supported
-   * @param {string} plz - Postal code to check
-   * @returns {boolean} Whether the postal code is supported
-   */
   isPostalCodeSupported(plz) {
-    // Assume Rabot supports most German PLZ
     return /^\d{5}$/.test(plz);
   }
 }

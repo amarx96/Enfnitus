@@ -44,6 +44,11 @@ interface CustomerData {
   // Account Information
   passwort: string;
   passwortBestaetigung: string;
+
+  // Payment Information
+  iban: string;
+  kontoinhaber: string;
+  sepaMandat: boolean;
   
   // Agreements
   agbAkzeptiert: boolean;
@@ -66,6 +71,9 @@ interface ErrorData {
   stadt?: string;
   passwort?: string;
   passwortBestaetigung?: string;
+  iban?: string;
+  kontoinhaber?: string;
+  sepaMandat?: string;
   agbAkzeptiert?: string; // Error messages are strings
   datenschutzAkzeptiert?: string; // Error messages are strings
 }
@@ -91,6 +99,9 @@ const ContractPage: React.FC = () => {
     bezirk: '',
     passwort: '',
     passwortBestaetigung: '',
+    iban: '',
+    kontoinhaber: '',
+    sepaMandat: false,
     agbAkzeptiert: false,
     datenschutzAkzeptiert: false,
     marketingEinverstaendnis: false,
@@ -140,6 +151,11 @@ const ContractPage: React.FC = () => {
     if (customerData.passwort !== customerData.passwortBestaetigung) {
       newErrors.passwortBestaetigung = 'Mật khẩu không khớp';
     }
+
+    // Payment validation
+    if (!customerData.iban.trim()) newErrors.iban = 'IBAN là bắt buộc';
+    if (!customerData.kontoinhaber.trim()) newErrors.kontoinhaber = 'Chủ tài khoản là bắt buộc';
+    if (!customerData.sepaMandat) newErrors.sepaMandat = 'Phải chấp nhận ủy nhiệm chi SEPA';
     
     // Required checkboxes
     if (!customerData.agbAkzeptiert) newErrors.agbAkzeptiert = 'Phải chấp nhận điều khoản sử dụng';
@@ -202,8 +218,8 @@ const ContractPage: React.FC = () => {
           tariffId: selectedTariff.id,
           estimatedConsumption: formData?.jahresverbrauch || 2500,
           desiredStartDate: new Date().toISOString().split('T')[0],
-          iban: '',
-          sepaMandate: false,
+          iban: customerData.iban,
+          sepaMandate: customerData.sepaMandat,
           voucherCode: voucher?.voucherCode || null
         },
         meterLocation: {
@@ -399,6 +415,45 @@ const ContractPage: React.FC = () => {
                       <FormErrorMessage>{errors.stadt}</FormErrorMessage>
                     </FormControl>
                   </SimpleGrid>
+
+                  <Divider />
+
+                  {/* Payment Information */}
+                  <Text fontWeight="bold" color="gray.700" alignSelf="start">
+                    Thông tin thanh toán (SEPA)
+                  </Text>
+                  
+                  <FormControl isInvalid={!!errors.kontoinhaber}>
+                    <FormLabel>Chủ tài khoản *</FormLabel>
+                    <Input
+                      value={customerData.kontoinhaber}
+                      onChange={(e) => handleInputChange('kontoinhaber', e.target.value)}
+                      placeholder="Nguyen Van An"
+                    />
+                    <FormErrorMessage>{errors.kontoinhaber}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.iban}>
+                    <FormLabel>IBAN *</FormLabel>
+                    <Input
+                      value={customerData.iban}
+                      onChange={(e) => handleInputChange('iban', e.target.value)}
+                      placeholder="DE12 3456 7890 1234 5678 90"
+                    />
+                    <FormErrorMessage>{errors.iban}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.sepaMandat}>
+                    <Checkbox
+                      isChecked={customerData.sepaMandat}
+                      onChange={(e) => handleInputChange('sepaMandat', e.target.checked)}
+                    >
+                      <Text fontSize="sm">
+                        Tôi ủy quyền cho Viet Energie thu các khoản thanh toán từ tài khoản của tôi bằng cách ghi nợ trực tiếp (SEPA).
+                      </Text>
+                    </Checkbox>
+                    <FormErrorMessage>{errors.sepaMandat}</FormErrorMessage>
+                  </FormControl>
 
                   <Divider />
 
