@@ -1,0 +1,77 @@
+name: CI - Test & Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # 1. Backend Tests
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Backend Dependencies
+      run: npm ci
+
+    - name: Run Backend Unit Tests
+      run: npm test
+      env:
+        # Mock environment variables for testing
+        DB_ENABLED: false
+        JWT_SECRET: test-secret
+
+  # 2. Frontend Enfinitus Build Check
+  build-frontend-enfinitus:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend-chakra/package-lock.json
+
+    - name: Install Frontend Dependencies
+      working-directory: ./frontend-chakra
+      run: npm ci
+
+    - name: Build Frontend
+      working-directory: ./frontend-chakra
+      run: npm run build
+      env:
+        CI: false # Warnungen nicht als Fehler behandeln
+
+  # 3. Frontend Viet Energie Build Check
+  build-frontend-viet:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend-viet/package-lock.json
+
+    - name: Install Frontend Dependencies
+      working-directory: ./frontend-viet
+      run: npm ci
+
+    - name: Build Frontend
+      working-directory: ./frontend-viet
+      run: npm run build
+      env:
+        CI: false
+

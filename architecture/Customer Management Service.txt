@@ -1,0 +1,21 @@
+Customer Management Service
+▲ GraphQL queries & mutations – Ops UI / CSR Front-End
+▲ Kafka events (ContractActivated, MeterReadingIngested, PriceVersionPublished, InvoiceIssued, PaymentReceived)
+│
+┌─────┴───────────────────────────────────────────────────────────────────────────┐
+│ API Layer (GraphQL) │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Change Processor (Kafka Consumer) │
+│ ├─ Upsert Customer & Contract → customerTable, contractRef, contractTable │
+│ ├─ Upsert Meter Reading → meterReadingTable │
+│ ├─ Upsert Pricing Snapshot → customerPricingTable │
+│ └─ Update Billing Status → customerTable │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Persist Results → Postgres │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ PostgreSQL (customerTable, contractRef, meterReadingTable, │
+│ customerPricingTable, customerEventHistory) │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Cache & Search (Redis profile cache, ElasticSearch index) │
+│ Notification Hub → Email / SMS │
+└─────────────────────────────────────────────────────────────────────────────────┘

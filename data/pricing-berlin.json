@@ -1,0 +1,569 @@
+{
+  "pricing_data": {
+    "region": "Berlin",
+    "currency": "EUR",
+    "last_updated": "2025-11-15",
+    "tariffs": {
+      "standard": {
+        "name": "Enfinitus Standard",
+        "type": "fixed",
+        "description": "Unser bewährter Festpreistarif"
+      },
+      "green": {
+        "name": "Enfinitus Grün",
+        "type": "green",
+        "description": "100% Ökostrom aus erneuerbaren Energien"
+      },
+      "dynamic": {
+        "name": "Enfinitus Dynamisch",
+        "type": "dynamic", 
+        "description": "Börsenpreis-gekoppelter Tarif"
+      }
+    },
+    "postal_codes": {
+      "10115": {
+        "district": "Berlin-Mitte",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.50,
+            "grundpreis_netto": 9.90,
+            "arbeitspreis_brutto": 33.92,
+            "grundpreis_brutto": 11.78
+          },
+          "green": {
+            "arbeitspreis_netto": 30.20,
+            "grundpreis_netto": 10.50,
+            "arbeitspreis_brutto": 35.94,
+            "grundpreis_brutto": 12.50
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.80,
+            "grundpreis_netto": 8.90,
+            "arbeitspreis_brutto": 31.89,
+            "grundpreis_brutto": 10.59
+          }
+        }
+      },
+      "10117": {
+        "district": "Berlin-Mitte",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.50,
+            "grundpreis_netto": 9.90,
+            "arbeitspreis_brutto": 33.92,
+            "grundpreis_brutto": 11.78
+          },
+          "green": {
+            "arbeitspreis_netto": 30.20,
+            "grundpreis_netto": 10.50,
+            "arbeitspreis_brutto": 35.94,
+            "grundpreis_brutto": 12.50
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.80,
+            "grundpreis_netto": 8.90,
+            "arbeitspreis_brutto": 31.89,
+            "grundpreis_brutto": 10.59
+          }
+        }
+      },
+      "10178": {
+        "district": "Berlin-Mitte",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.45,
+            "grundpreis_netto": 9.85,
+            "arbeitspreis_brutto": 33.86,
+            "grundpreis_brutto": 11.72
+          },
+          "green": {
+            "arbeitspreis_netto": 30.15,
+            "grundpreis_netto": 10.45,
+            "arbeitspreis_brutto": 35.88,
+            "grundpreis_brutto": 12.44
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.75,
+            "grundpreis_netto": 8.85,
+            "arbeitspreis_brutto": 31.83,
+            "grundpreis_brutto": 10.53
+          }
+        }
+      },
+      "10179": {
+        "district": "Berlin-Mitte",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.45,
+            "grundpreis_netto": 9.85,
+            "arbeitspreis_brutto": 33.86,
+            "grundpreis_brutto": 11.72
+          },
+          "green": {
+            "arbeitspreis_netto": 30.15,
+            "grundpreis_netto": 10.45,
+            "arbeitspreis_brutto": 35.88,
+            "grundpreis_brutto": 12.44
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.75,
+            "grundpreis_netto": 8.85,
+            "arbeitspreis_brutto": 31.83,
+            "grundpreis_brutto": 10.53
+          }
+        }
+      },
+      "10243": {
+        "district": "Friedrichshain",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.60,
+            "grundpreis_netto": 10.10,
+            "arbeitspreis_brutto": 34.03,
+            "grundpreis_brutto": 12.02
+          },
+          "green": {
+            "arbeitspreis_netto": 30.35,
+            "grundpreis_netto": 10.70,
+            "arbeitspreis_brutto": 36.12,
+            "grundpreis_brutto": 12.73
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.95,
+            "grundpreis_netto": 9.10,
+            "arbeitspreis_brutto": 32.07,
+            "grundpreis_brutto": 10.83
+          }
+        }
+      },
+      "10245": {
+        "district": "Friedrichshain",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.60,
+            "grundpreis_netto": 10.10,
+            "arbeitspreis_brutto": 34.03,
+            "grundpreis_brutto": 12.02
+          },
+          "green": {
+            "arbeitspreis_netto": 30.35,
+            "grundpreis_netto": 10.70,
+            "arbeitspreis_brutto": 36.12,
+            "grundpreis_brutto": 12.73
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.95,
+            "grundpreis_netto": 9.10,
+            "arbeitspreis_brutto": 32.07,
+            "grundpreis_brutto": 10.83
+          }
+        }
+      },
+      "10247": {
+        "district": "Friedrichshain",
+        "network_operator": "Stromnetz Berlin", 
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.55,
+            "grundpreis_netto": 10.05,
+            "arbeitspreis_brutto": 33.97,
+            "grundpreis_brutto": 11.96
+          },
+          "green": {
+            "arbeitspreis_netto": 30.30,
+            "grundpreis_netto": 10.65,
+            "arbeitspreis_brutto": 36.06,
+            "grundpreis_brutto": 12.67
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.90,
+            "grundpreis_netto": 9.05,
+            "arbeitspreis_brutto": 32.01,
+            "grundpreis_brutto": 10.77
+          }
+        }
+      },
+      "10249": {
+        "district": "Friedrichshain",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.55,
+            "grundpreis_netto": 10.05,
+            "arbeitspreis_brutto": 33.97,
+            "grundpreis_brutto": 11.96
+          },
+          "green": {
+            "arbeitspreis_netto": 30.30,
+            "grundpreis_netto": 10.65,
+            "arbeitspreis_brutto": 36.06,
+            "grundpreis_brutto": 12.67
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.90,
+            "grundpreis_netto": 9.05,
+            "arbeitspreis_brutto": 32.01,
+            "grundpreis_brutto": 10.77
+          }
+        }
+      },
+      "10315": {
+        "district": "Lichtenberg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.25,
+            "grundpreis_netto": 9.70,
+            "arbeitspreis_brutto": 33.62,
+            "grundpreis_brutto": 11.54
+          },
+          "green": {
+            "arbeitspreis_netto": 29.95,
+            "grundpreis_netto": 10.30,
+            "arbeitspreis_brutto": 35.64,
+            "grundpreis_brutto": 12.26
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.55,
+            "grundpreis_netto": 8.70,
+            "arbeitspreis_brutto": 31.59,
+            "grundpreis_brutto": 10.35
+          }
+        }
+      },
+      "10317": {
+        "district": "Lichtenberg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.25,
+            "grundpreis_netto": 9.70,
+            "arbeitspreis_brutto": 33.62,
+            "grundpreis_brutto": 11.54
+          },
+          "green": {
+            "arbeitspreis_netto": 29.95,
+            "grundpreis_netto": 10.30,
+            "arbeitspreis_brutto": 35.64,
+            "grundpreis_brutto": 12.26
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.55,
+            "grundpreis_netto": 8.70,
+            "arbeitspreis_brutto": 31.59,
+            "grundpreis_brutto": 10.35
+          }
+        }
+      },
+      "10318": {
+        "district": "Lichtenberg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.30,
+            "grundpreis_netto": 9.75,
+            "arbeitspreis_brutto": 33.68,
+            "grundpreis_brutto": 11.60
+          },
+          "green": {
+            "arbeitspreis_netto": 30.00,
+            "grundpreis_netto": 10.35,
+            "arbeitspreis_brutto": 35.70,
+            "grundpreis_brutto": 12.32
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.60,
+            "grundpreis_netto": 8.75,
+            "arbeitspreis_brutto": 31.65,
+            "grundpreis_brutto": 10.41
+          }
+        }
+      },
+      "10405": {
+        "district": "Prenzlauer Berg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.65,
+            "grundpreis_netto": 10.15,
+            "arbeitspreis_brutto": 34.09,
+            "grundpreis_brutto": 12.08
+          },
+          "green": {
+            "arbeitspreis_netto": 30.40,
+            "grundpreis_netto": 10.75,
+            "arbeitspreis_brutto": 36.18,
+            "grundpreis_brutto": 12.79
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 27.00,
+            "grundpreis_netto": 9.15,
+            "arbeitspreis_brutto": 32.13,
+            "grundpreis_brutto": 10.89
+          }
+        }
+      },
+      "10407": {
+        "district": "Prenzlauer Berg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.65,
+            "grundpreis_netto": 10.15,
+            "arbeitspreis_brutto": 34.09,
+            "grundpreis_brutto": 12.08
+          },
+          "green": {
+            "arbeitspreis_netto": 30.40,
+            "grundpreis_netto": 10.75,
+            "arbeitspreis_brutto": 36.18,
+            "grundpreis_brutto": 12.79
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 27.00,
+            "grundpreis_netto": 9.15,
+            "arbeitspreis_brutto": 32.13,
+            "grundpreis_brutto": 10.89
+          }
+        }
+      },
+      "10409": {
+        "district": "Prenzlauer Berg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.60,
+            "grundpreis_netto": 10.10,
+            "arbeitspreis_brutto": 34.03,
+            "grundpreis_brutto": 12.02
+          },
+          "green": {
+            "arbeitspreis_netto": 30.35,
+            "grundpreis_netto": 10.70,
+            "arbeitspreis_brutto": 36.12,
+            "grundpreis_brutto": 12.73
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.95,
+            "grundpreis_netto": 9.10,
+            "arbeitspreis_brutto": 32.07,
+            "grundpreis_brutto": 10.83
+          }
+        }
+      },
+      "10585": {
+        "district": "Charlottenburg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.80,
+            "grundpreis_netto": 10.30,
+            "arbeitspreis_brutto": 34.27,
+            "grundpreis_brutto": 12.26
+          },
+          "green": {
+            "arbeitspreis_netto": 30.55,
+            "grundpreis_netto": 10.90,
+            "arbeitspreis_brutto": 36.35,
+            "grundpreis_brutto": 12.97
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 27.15,
+            "grundpreis_netto": 9.30,
+            "arbeitspreis_brutto": 32.31,
+            "grundpreis_brutto": 11.07
+          }
+        }
+      },
+      "10587": {
+        "district": "Charlottenburg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.80,
+            "grundpreis_netto": 10.30,
+            "arbeitspreis_brutto": 34.27,
+            "grundpreis_brutto": 12.26
+          },
+          "green": {
+            "arbeitspreis_netto": 30.55,
+            "grundpreis_netto": 10.90,
+            "arbeitspreis_brutto": 36.35,
+            "grundpreis_brutto": 12.97
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 27.15,
+            "grundpreis_netto": 9.30,
+            "arbeitspreis_brutto": 32.31,
+            "grundpreis_brutto": 11.07
+          }
+        }
+      },
+      "10589": {
+        "district": "Charlottenburg",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.75,
+            "grundpreis_netto": 10.25,
+            "arbeitspreis_brutto": 34.21,
+            "grundpreis_brutto": 12.20
+          },
+          "green": {
+            "arbeitspreis_netto": 30.50,
+            "grundpreis_netto": 10.85,
+            "arbeitspreis_brutto": 36.30,
+            "grundpreis_brutto": 12.91
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 27.10,
+            "grundpreis_netto": 9.25,
+            "arbeitspreis_brutto": 32.25,
+            "grundpreis_brutto": 11.01
+          }
+        }
+      },
+      "12043": {
+        "district": "Neukölln",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.40,
+            "grundpreis_netto": 9.80,
+            "arbeitspreis_brutto": 33.80,
+            "grundpreis_brutto": 11.66
+          },
+          "green": {
+            "arbeitspreis_netto": 30.10,
+            "grundpreis_netto": 10.40,
+            "arbeitspreis_brutto": 35.82,
+            "grundpreis_brutto": 12.38
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.70,
+            "grundpreis_netto": 8.80,
+            "arbeitspreis_brutto": 31.77,
+            "grundpreis_brutto": 10.47
+          }
+        }
+      },
+      "12045": {
+        "district": "Neukölln", 
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.40,
+            "grundpreis_netto": 9.80,
+            "arbeitspreis_brutto": 33.80,
+            "grundpreis_brutto": 11.66
+          },
+          "green": {
+            "arbeitspreis_netto": 30.10,
+            "grundpreis_netto": 10.40,
+            "arbeitspreis_brutto": 35.82,
+            "grundpreis_brutto": 12.38
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.70,
+            "grundpreis_netto": 8.80,
+            "arbeitspreis_brutto": 31.77,
+            "grundpreis_brutto": 10.47
+          }
+        }
+      },
+      "12047": {
+        "district": "Neukölln",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.35,
+            "grundpreis_netto": 9.75,
+            "arbeitspreis_brutto": 33.74,
+            "grundpreis_brutto": 11.60
+          },
+          "green": {
+            "arbeitspreis_netto": 30.05,
+            "grundpreis_netto": 10.35,
+            "arbeitspreis_brutto": 35.76,
+            "grundpreis_brutto": 12.32
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.65,
+            "grundpreis_netto": 8.75,
+            "arbeitspreis_brutto": 31.71,
+            "grundpreis_brutto": 10.41
+          }
+        }
+      },
+      "12099": {
+        "district": "Tempelhof",
+        "network_operator": "Stromnetz Berlin",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 28.45,
+            "grundpreis_netto": 9.85,
+            "arbeitspreis_brutto": 33.86,
+            "grundpreis_brutto": 11.72
+          },
+          "green": {
+            "arbeitspreis_netto": 30.15,
+            "grundpreis_netto": 10.45,
+            "arbeitspreis_brutto": 35.88,
+            "grundpreis_brutto": 12.44
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 26.75,
+            "grundpreis_netto": 8.85,
+            "arbeitspreis_brutto": 31.83,
+            "grundpreis_brutto": 10.53
+          }
+        }
+      },
+      "14467": {
+        "district": "Potsdam",
+        "network_operator": "E.DIS",
+        "tariffs": {
+          "standard": {
+            "arbeitspreis_netto": 29.20,
+            "grundpreis_netto": 10.50,
+            "arbeitspreis_brutto": 34.75,
+            "grundpreis_brutto": 12.50
+          },
+          "green": {
+            "arbeitspreis_netto": 30.95,
+            "grundpreis_netto": 11.10,
+            "arbeitspreis_brutto": 36.83,
+            "grundpreis_brutto": 13.21
+          },
+          "dynamic": {
+            "arbeitspreis_netto": 27.55,
+            "grundpreis_netto": 9.50,
+            "arbeitspreis_brutto": 32.78,
+            "grundpreis_brutto": 11.31
+          }
+        }
+      }
+    }
+  },
+  "calculation_notes": {
+    "vat_rate": 0.19,
+    "unit_arbeitspreis": "ct/kWh",
+    "unit_grundpreis": "EUR/month",
+    "price_includes": [
+      "Netznutzungsentgelte",
+      "Messstellenbetrieb",
+      "Umlagen nach EEG/KWKG",
+      "Stromsteuer",
+      "Konzessionsabgabe"
+    ],
+    "price_excludes": [
+      "Mehrwertsteuer (wird separat ausgewiesen)"
+    ]
+  }
+}
