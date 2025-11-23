@@ -15,6 +15,7 @@ const contractingRoutes = require('./routes/contracting');
 const customerRoutes = require('./routes/customer');
 const authRoutes = require('./routes/auth');
 const voucherRoutes = require('./routes/voucher');
+const internalRoutes = require('./routes/internal');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -125,7 +126,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Import voucher routes
 // API routes
 const apiRouter = express.Router();
 
@@ -134,6 +134,7 @@ apiRouter.use('/pricing', pricingRoutes);
 apiRouter.use('/contracting', contractingRoutes);
 apiRouter.use('/customers', customerRoutes);
 apiRouter.use('/voucher', voucherRoutes);
+apiRouter.use('/internal', internalRoutes);
 
 // Legacy route aliases for backward compatibility
 apiRouter.use('/tarife', pricingRoutes);
