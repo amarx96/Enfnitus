@@ -26,6 +26,8 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+
 interface CustomerData {
   // Personal Information
   vorname: string;
@@ -236,7 +238,7 @@ const ContractPage: React.FC = () => {
       };
 
       // Import contract via Contracting Service
-      const response = await axios.post('http://localhost:3000/api/v1/contracting/import', importPayload);
+      const response = await axios.post(API_URL + '/contracting/import', importPayload);
       
       if (response.data.success) {
         toast({

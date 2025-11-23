@@ -30,6 +30,8 @@ import {
 import { CheckIcon } from '@chakra-ui/icons';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+
 interface Tariff {
   id: string;
   name: string;
@@ -96,7 +98,7 @@ const PricingPage: React.FC = () => {
       
       console.log('Request data:', requestData); // Debug
 
-      const response = await axios.post('http://localhost:3000/api/v1/pricing/berechnen', requestData);
+      const response = await axios.post(API_URL + '/pricing/berechnen', requestData);
       console.log('Response received:', response.data); // Debug
       if (response.data.erfolg) {
         const data = response.data.daten;
@@ -173,7 +175,7 @@ const PricingPage: React.FC = () => {
         funnelId: 'enfinitus-website'
       };
 
-      const response = await axios.post('http://localhost:3000/api/v1/pricing/berechnen', requestData);
+      const response = await axios.post(API_URL + '/pricing/berechnen', requestData);
       
       if (response.data.erfolg) {
         const data = response.data.daten;
@@ -243,7 +245,7 @@ const PricingPage: React.FC = () => {
 
     setVoucherLoading(true);
     try {
-      const response = await axios.post('http://localhost:3000/api/v1/voucher/validate', {
+      const response = await axios.post(API_URL + '/voucher/validate', {
         voucherCode: voucherCode.toUpperCase(),
         tariffId: 'standard-10115',
       });

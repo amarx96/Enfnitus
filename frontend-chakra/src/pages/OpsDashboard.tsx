@@ -40,6 +40,8 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+
 // Types
 interface Campaign {
   id: string;
@@ -131,7 +133,7 @@ const OpsDashboard: React.FC = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/v1/contracting/ops/campaigns');
+      const res = await axios.get(API_URL + '/contracting/ops/campaigns');
       setCampaigns(res.data.data);
     } catch (err) {
       console.error(err);
@@ -140,7 +142,7 @@ const OpsDashboard: React.FC = () => {
 
   const fetchPricingMargins = async (funnelId: string) => {
     try {
-      const res = await axios.get(`http://localhost:3000/api/v1/pricing/ops/margins?funnelId=${funnelId}`);
+      const res = await axios.get(`${API_URL}/pricing/ops/margins?funnelId=${funnelId}`);
       const types = ['FIX12', 'FIX24', 'DYNAMIC', 'GREEN'];
       const merged = types.map(type => {
          const existing = res.data.data.find((m: any) => m.tariff_type === type);
@@ -164,7 +166,7 @@ const OpsDashboard: React.FC = () => {
 
   const fetchMarketingCampaigns = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/v1/contracting/ops/marketing-campaigns');
+      const res = await axios.get(API_URL + '/contracting/ops/marketing-campaigns');
       setMarketingCampaigns(res.data.data);
     } catch (err) {
       console.error(err);
@@ -174,8 +176,8 @@ const OpsDashboard: React.FC = () => {
   const fetchContracts = async () => {
     try {
       const url = customerIdSearch 
-        ? `http://localhost:3000/api/v1/contracting/ops/contracts?customerId=${customerIdSearch}`
-        : 'http://localhost:3000/api/v1/contracting/ops/contracts';
+        ? `${API_URL}/contracting/ops/contracts?customerId=${customerIdSearch}`
+        : API_URL + '/contracting/ops/contracts';
       const res = await axios.get(url);
       setContracts(res.data.data);
     } catch (err) {
@@ -185,7 +187,7 @@ const OpsDashboard: React.FC = () => {
 
   const handleCreateCampaign = async () => {
     try {
-      await axios.post('http://localhost:3000/api/v1/contracting/ops/marketing-campaigns', newCampaign);
+      await axios.post(API_URL + '/contracting/ops/marketing-campaigns', newCampaign);
       toast({ title: 'Campaign Created', status: 'success' });
       fetchMarketingCampaigns();
       setNewCampaign({
@@ -204,7 +206,7 @@ const OpsDashboard: React.FC = () => {
   const handleContractSelect = async (contractId: string, dbId: string) => {
     setSelectedContractId(contractId);
     try {
-      const res = await axios.get(`http://localhost:3000/api/v1/contracting/ops/malo-drafts/${contractId}`);
+      const res = await axios.get(`${API_URL}/contracting/ops/malo-drafts/${contractId}`);
       setMaLoDrafts(res.data.data);
     } catch (err) {
       console.error(err);
@@ -220,7 +222,7 @@ const OpsDashboard: React.FC = () => {
   const saveMaLoChanges = async () => {
     if (!editingMaLo) return;
     try {
-      await axios.put(`http://localhost:3000/api/v1/contracting/ops/malo-drafts/${editingMaLo.id}`, editingMaLo);
+      await axios.put(`${API_URL}/contracting/ops/malo-drafts/${editingMaLo.id}`, editingMaLo);
       toast({ title: 'Changes saved', status: 'success' });
       setIsEditOpen(false);
       if (selectedContractId) handleContractSelect(selectedContractId, ''); // Refresh
@@ -231,7 +233,7 @@ const OpsDashboard: React.FC = () => {
 
   const confirmSwitch = async (draftId: string) => {
     try {
-      await axios.post('http://localhost:3000/api/v1/contracting/ops/confirm-switch', { draftId });
+      await axios.post(API_URL + '/contracting/ops/confirm-switch', { draftId });
       toast({ title: 'Switch Initiated (GPKE/MaKo sent)', status: 'success' });
       if (selectedContractId) handleContractSelect(selectedContractId, ''); // Refresh
     } catch (err: any) {
@@ -247,7 +249,7 @@ const OpsDashboard: React.FC = () => {
 
   const saveMargin = async (margin: PricingMargin) => {
     try {
-       await axios.post('http://localhost:3000/api/v1/pricing/ops/margins', margin);
+       await axios.post(API_URL + '/pricing/ops/margins', margin);
        toast({ title: `Saved margin for ${margin.tariff_type}`, status: 'success' });
     } catch (err) {
        toast({ title: 'Save failed', status: 'error' });
